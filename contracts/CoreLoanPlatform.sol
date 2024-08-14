@@ -17,8 +17,8 @@ contract CoreLoanPlatform is Ownable {
     uint256 public constant LOAN_DURATION = 30 days;
     uint256 private constant SECONDS_IN_A_DAY = 86400;
 
-    uint256 private totalStaked = 0; //Counter for total staked
-    uint256 private totalBorrowed = 0; //Counter for total borrowed
+    uint256 private totalStaked = 0; // Counter for total staked
+    uint256 private totalBorrowed = 0; // Counter for total borrowed
 
     struct Loan {
         uint256 amount;
@@ -38,69 +38,97 @@ contract CoreLoanPlatform is Ownable {
     event BTCDeposited(address indexed lender, uint256 amount);
     event BTCWithdrawn(address indexed lender, uint256 amount);
 
-    // Add Constructor here
-
-    function depositCollateral(uint256 amount) external  {
-      // TODO : Implement Logic for deposting Collateral
+    // Constructor to initialize the contract with USD and BTC token addresses
+    constructor(IERC20 _USD, IERC20 _BTC) Ownable(msg.sender) {
+        USD = _USD;
+        BTC = _BTC;
     }
 
-    function withdrawCollateral(uint256 amount) external  {
-      // TODO : Implement Logic for withdrawing Collateral
+    function depositCollateral(uint256 amount) external {
+        require(amount > 0, "Amount must be greater than 0");
+        USD.safeTransferFrom(msg.sender, address(this), amount);
+        userCollateral[msg.sender] += amount;
+        emit CollateralDeposited(msg.sender, amount);
     }
 
-    function borrowBTC(uint256 amount) external  {
-      // TODO : Implement Logic for borrowing BTC
+    function withdrawCollateral(uint256 amount) external {
+        require(amount > 0, "Amount must be greater than 0");
+        require(userCollateral[msg.sender] >= amount, "Insufficient collateral");
+        uint256 borrowedAmount = loans[msg.sender].active ? loans[msg.sender].amount : 0;
+        uint256 requiredCollateral = (borrowedAmount * COLLATERAL_RATIO) / 100;
+
+        require(userCollateral[msg.sender] - amount >= requiredCollateral, "Withdrawal would undercollateralize loan");
+        userCollateral[msg.sender] -= amount;
+        USD.safeTransfer(msg.sender, amount);
+        emit CollateralWithdrawn(msg.sender, amount);
+    }
+
+    function borrowBTC(uint256 amount) external {
+        require(amount > 0, "Amount must be greater than 0");
+        require(!loans[msg.sender].active, "Existing loan must be repaid first");
+
+        uint256 requiredCollateral = (amount * COLLATERAL_RATIO) / 100;
+        require(userCollateral[msg.sender] >= requiredCollateral, "Insufficient collateral");
+
+        uint256 maxBorrowable = (userCollateral[msg.sender] * BORROWABLE_RATIO) / 100;
+        require(amount <= maxBorrowable, "Borrow amount exceeds limit");
+        require(BTC.balanceOf(address(this)) >= amount, "Insufficient BTC in contract");
+
+        loans[msg.sender] = Loan(amount, requiredCollateral, block.timestamp, true);
+        BTC.safeTransfer(msg.sender, amount);
+        totalBorrowed = totalBorrowed + amount;
+        emit LoanTaken(msg.sender, amount, requiredCollateral);
     }
 
     function getBorrowableAmount(address user) external view returns (uint256) {
-      // TODO : Implement Logic for fetching borrowable amount
+        return (userCollateral[user] * BORROWABLE_RATIO) / 100;
     }
 
     function getUserCollateral(address user) external view returns (uint256) {
-      // TODO : Implement Logic for fetching user's collateral amount
+        return userCollateral[user];
     }
 
-    function depositBTC(uint256 amount) external  {
-      // TODO : Implement Logic for deposting BTC
+    function depositBTC(uint256 amount) external {
+        // TODO : Implement Logic for deposting BTC
     }
 
-    function withdrawBTC(uint256 amount) external  {
-      // TODO : Implement Logic for withdrawing BTC
+    function withdrawBTC(uint256 amount) external {
+        // TODO : Implement Logic for withdrawing BTC
     }
 
     function getUserStaked(address user) external view returns (uint256) {
-      // TODO : Implement Logic for fetching a User's Staked amount
+        // TODO : Implement Logic for fetching a User's Staked amount
     }
 
     function getCurrentApy() external pure returns (uint256) {
-      // TODO : Implement Logic for fetching current APY
+        // TODO : Implement Logic for fetching current APY
     }
 
-    function repayLoan(address user) external  {
-      // TODO : Implement Logic for repaying Loan
+    function repayLoan(address user) external {
+        // TODO : Implement Logic for repaying Loan
     }
 
     function calculateInterest(address user) external view returns (uint256) {
-      // TODO : Implement Logic for calculating interest
+        // TODO : Implement Logic for calculating interest
     }
 
     function getLoanDetails(address borrower) external view returns (Loan memory) {
-      // TODO : Implement Logic for fetching loan of specific borrower
+        // TODO : Implement Logic for fetching loan of specific borrower
     }
 
     function getLenderBalance(address lender) external view returns (uint256) {
-      // TODO : Implement Logic for getting the Lender balance
+        // TODO : Implement Logic for getting the Lender balance
     }
 
     function getTotalStaked() external view returns (uint256) {
-      // TODO : Implement Logic for fetching total staked amount
+        // TODO : Implement Logic for fetching total staked amount
     }
 
     function getTotalBorrowed() external view returns (uint256) {
-      // TODO : Implement Logic for fetching total borrowed amount
+        // TODO : Implement Logic for fetching total borrowed amount
     }
 
     function getUserBorrowed(address user) external view returns (uint256) {
-      // TODO : Implement Logic for fetching a User's borrowed amount
+        // TODO : Implement Logic for fetching a User's borrowed amount
     }
 }
